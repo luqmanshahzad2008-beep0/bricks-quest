@@ -1,0 +1,6 @@
+{
+  "name": "Bricks Breaker Quest",
+  "description": "Satisfying arcade brick breaker game with multi-ball streams, special power-ups, stage progression, and endless mode.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
