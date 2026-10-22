@@ -36,6 +36,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.R
@@ -63,6 +64,7 @@ fun LevelMapScreen(
     onOpenBallSkins: () -> Unit = {}
 ) {
     var highestUnlocked by remember { mutableIntStateOf(storage.highestStageUnlocked) }
+    var selectedStage by remember { mutableStateOf<Int?>(null) }
     val totalLevels = 5000
     val listState = rememberLazyListState()
     val context = LocalContext.current
@@ -109,15 +111,15 @@ fun LevelMapScreen(
             .background(Color(0xFF0F021D))
             .testTag("level_map_screen")
     ) {
-        // 1. LIVE DOWNWARD SCROLLING SEAMLESS MOUNTAIN BACKGROUND CANVAS
+        // 1. LIVE SEAMLESS MERGED MOUNTAIN & COSMIC NEBULA LOOPING BACKGROUND
         Canvas(modifier = Modifier.fillMaxSize()) {
             val w = size.width
             val h = size.height
 
-            // Rich deep cosmic background gradient
+            // Deep cosmic background base
             drawRect(
                 brush = Brush.verticalGradient(
-                    colors = listOf(Color(0xFF1A0B2E), Color(0xFF0F021D), Color(0xFF05010A))
+                    colors = listOf(Color(0xFF16062A), Color(0xFF0F021D), Color(0xFF06000D))
                 )
             )
 
@@ -129,22 +131,61 @@ fun LevelMapScreen(
                 val dst2 = RectF(0f, currentOffset - h, w, currentOffset)
 
                 val paint = android.graphics.Paint().apply {
-                    alpha = 210 // Soft translucent blend so it merges naturally with the cosmic gradient
+                    alpha = 185
                     isAntiAlias = true
                     isFilterBitmap = true
                 }
 
                 drawContext.canvas.nativeCanvas.drawBitmap(bitmap, srcRect, dst1, paint)
                 drawContext.canvas.nativeCanvas.drawBitmap(bitmap, srcRect, dst2, paint)
+
+                // Seamless merging cross-fade band across the tile junction
+                val fadeHeight = 260.dp.toPx()
+                val seamY = currentOffset
+                drawRect(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            Color.Transparent,
+                            Color(0xFF0F021D).copy(alpha = 0.75f),
+                            Color(0xFF0F021D).copy(alpha = 0.95f),
+                            Color(0xFF0F021D).copy(alpha = 0.75f),
+                            Color.Transparent
+                        ),
+                        startY = seamY - fadeHeight / 2f,
+                        endY = seamY + fadeHeight / 2f
+                    )
+                )
             }
 
-            // Atmospheric purple/cyan nebula glow overlay
+            // Continuous drifting cosmic nebulae that unify the space organically
+            val animShift = scrollOffset * 0.4f
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(Color(0xFFAB47BC).copy(alpha = 0.24f * pulseAlpha), Color.Transparent),
+                    radius = w * 0.8f,
+                    center = Offset(w * 0.25f, (animShift % h))
+                ),
+                radius = w * 0.8f,
+                center = Offset(w * 0.25f, (animShift % h))
+            )
+
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(Color(0xFF00E5FF).copy(alpha = 0.16f), Color.Transparent),
+                    radius = w * 0.7f,
+                    center = Offset(w * 0.8f, ((animShift + h * 0.5f) % h))
+                ),
+                radius = w * 0.7f,
+                center = Offset(w * 0.8f, ((animShift + h * 0.5f) % h))
+            )
+
+            // Atmospheric cosmic overlay with subtle vignette
             drawRect(
                 brush = Brush.verticalGradient(
                     colors = listOf(
-                        Color(0xFF9C27B0).copy(alpha = 0.20f),
+                        Color(0xFF140226).copy(alpha = 0.65f),
                         Color.Transparent,
-                        Color(0xFF00E5FF).copy(alpha = 0.15f)
+                        Color(0xFF05000C).copy(alpha = 0.80f)
                     )
                 )
             )
@@ -175,7 +216,7 @@ fun LevelMapScreen(
                     onClick = {
                         soundManager.playClickSound()
                         if (isUnlocked) {
-                            onStartStage(level)
+                            selectedStage = level
                         }
                     }
                 )
@@ -225,6 +266,132 @@ fun LevelMapScreen(
             )
 
             Spacer(modifier = Modifier.size(46.dp))
+        }
+
+        // 4. STAGE START DIALOG WITH GLOSSY 3D CAPSULE "GO" BUTTON
+        selectedStage?.let { stage ->
+            val stageStars = storage.getStageStars(stage)
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.78f))
+                    .clickable(
+                        interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                        indication = null
+                    ) { selectedStage = null },
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.88f)
+                        .widthIn(max = 380.dp)
+                        .shadow(
+                            elevation = 28.dp,
+                            shape = RoundedCornerShape(30.dp),
+                            ambientColor = Color(0xFF00E5FF).copy(alpha = 0.45f),
+                            spotColor = Color(0xFFE040FB).copy(alpha = 0.75f)
+                        )
+                        .clip(RoundedCornerShape(30.dp))
+                        .border(
+                            width = 2.5.dp,
+                            brush = Brush.verticalGradient(
+                                colors = listOf(
+                                    Color(0xFF00E5FF),
+                                    Color(0xFF7C4DFF),
+                                    Color(0xFFE040FB)
+                                )
+                            ),
+                            shape = RoundedCornerShape(30.dp)
+                        )
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(
+                                    Color(0xFF16062A),
+                                    Color(0xFF0D021D),
+                                    Color(0xFF070010)
+                                )
+                            )
+                        )
+                        .clickable(enabled = false) {}
+                        .padding(24.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        // Top Header: Stage Title & Close button
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "STAGE $stage",
+                                color = Color.White,
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.Black,
+                                letterSpacing = 2.sp
+                            )
+                            IconButton(
+                                onClick = { selectedStage = null },
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Close",
+                                    tint = Color.White.copy(alpha = 0.65f)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Star ratings (3 stars preview)
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            for (s in 1..3) {
+                                val has = s <= stageStars
+                                Icon(
+                                    imageVector = Icons.Filled.Star,
+                                    contentDescription = null,
+                                    tint = if (has) Color(0xFFFFD700) else Color(0xFF4A148C),
+                                    modifier = Modifier.size(38.dp)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        Text(
+                            text = "60 Starting Balls • Aim & Destroy Bricks",
+                            color = Color(0xFF00E5FF).copy(alpha = 0.9f),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center
+                        )
+
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        // GLOSSY 3D CAPSULE "GO" BUTTON FROM USER REFERENCE IMAGE
+                        GlossyArcadeCapsuleButton(
+                            text = "GO",
+                            style = GlossyButtonStyle.GO,
+                            onClick = {
+                                soundManager.playClickSound()
+                                selectedStage = null
+                                onStartStage(stage)
+                            },
+                            pulseAlpha = pulseAlpha,
+                            height = 62.dp,
+                            fontSize = 26.sp,
+                            testTag = "stage_dialog_go_button",
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+            }
         }
     }
 }

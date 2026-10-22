@@ -37,7 +37,7 @@ class SoundManager(context: Context) {
             .build()
 
         soundPool = SoundPool.Builder()
-            .setMaxStreams(16)
+            .setMaxStreams(32)
             .setAudioAttributes(audioAttributes)
             .build()
 
@@ -68,56 +68,68 @@ class SoundManager(context: Context) {
     private var lastBreakSoundTime = 0L
     private var lastLaserSoundTime = 0L
     private var lastBombSoundTime = 0L
+    private var lastBounceSoundTime = 0L
 
     fun playHitSound(comboIndex: Int) {
         if (!isSoundEnabled) return
         val now = android.os.SystemClock.uptimeMillis()
-        if (now - lastHitSoundTime < 22L) return
+        if (now - lastHitSoundTime < 16L) return
         lastHitSoundTime = now
         val id = soundIds["hit"] ?: return
         val noteIdx = (comboIndex.coerceAtLeast(0)) % comboScale.size
-        val pitch = comboScale[noteIdx]
-        soundPool.play(id, 1.0f, 1.0f, 1, 0, pitch)
+        val octaveShift = (comboIndex / comboScale.size).coerceAtMost(2) * 0.14f
+        val pitch = (comboScale[noteIdx] + octaveShift).coerceIn(0.75f, 2.0f)
+        soundPool.play(id, 0.90f, 0.90f, 1, 0, pitch)
+    }
+
+    fun playBounceSound() {
+        if (!isSoundEnabled) return
+        val now = android.os.SystemClock.uptimeMillis()
+        if (now - lastBounceSoundTime < 35L) return
+        lastBounceSoundTime = now
+        val id = soundIds["click"] ?: return
+        soundPool.play(id, 0.35f, 0.35f, 1, 0, 1.35f)
     }
 
     fun playBreakSound() {
         if (!isSoundEnabled) return
         val now = android.os.SystemClock.uptimeMillis()
-        if (now - lastBreakSoundTime < 35L) return
+        if (now - lastBreakSoundTime < 28L) return
         lastBreakSoundTime = now
         val id = soundIds["break"] ?: return
-        val randomPitch = 0.95f + (Math.random().toFloat() * 0.15f)
+        val randomPitch = 1.0f + (Math.random().toFloat() * 0.20f)
         soundPool.play(id, 1.0f, 1.0f, 2, 0, randomPitch)
     }
 
     fun playCollectBallSound() {
         if (!isSoundEnabled) return
         val id = soundIds["collect"] ?: return
-        soundPool.play(id, 1.0f, 1.0f, 2, 0, 1.0f)
+        soundPool.play(id, 1.0f, 1.0f, 3, 0, 1.25f)
     }
 
     fun playLaserSound() {
         if (!isSoundEnabled) return
         val now = android.os.SystemClock.uptimeMillis()
-        if (now - lastLaserSoundTime < 45L) return
+        if (now - lastLaserSoundTime < 35L) return
         lastLaserSoundTime = now
         val id = soundIds["laser"] ?: return
-        soundPool.play(id, 1.0f, 1.0f, 2, 0, 1.0f)
+        val pitch = 0.95f + (Math.random().toFloat() * 0.18f)
+        soundPool.play(id, 1.0f, 1.0f, 3, 0, pitch)
     }
 
     fun playBombSound() {
         if (!isSoundEnabled) return
         val now = android.os.SystemClock.uptimeMillis()
-        if (now - lastBombSoundTime < 80L) return
+        if (now - lastBombSoundTime < 60L) return
         lastBombSoundTime = now
         val id = soundIds["bomb"] ?: return
-        soundPool.play(id, 1.0f, 1.0f, 2, 0, 1.0f)
+        soundPool.play(id, 1.0f, 1.0f, 3, 0, 0.92f)
     }
 
     fun playLaunchSound() {
         if (!isSoundEnabled) return
         val id = soundIds["launch"] ?: return
-        soundPool.play(id, 0.65f, 0.65f, 1, 0, 1.0f)
+        soundPool.play(id, 0.70f, 0.70f, 1, 0, 1.05f)
     }
 
     fun playVictorySound() {

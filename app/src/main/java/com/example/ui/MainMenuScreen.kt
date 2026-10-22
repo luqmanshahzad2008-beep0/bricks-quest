@@ -205,47 +205,43 @@ fun MainMenuScreen(
 
             Spacer(modifier = Modifier.weight(0.5f))
 
-            // FOUR LARGE, CENTERED, VERTICALLY STACKED STYLISH ARCADE BUTTONS
+            // FOUR LARGE, CENTERED, VERTICALLY STACKED 3D GLOSSY ARCADE CAPSULE BUTTONS
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(15.dp)
             ) {
-                // 1. PLAY BUTTON (Vibrant Neon Cyan & Royal Blue Cosmic Jewel)
-                CrystalTitleMenuButton(
+                // 1. PLAY BUTTON (Vibrant Neon Cyan & Royal Blue Capsule from reference image)
+                GlossyArcadeCapsuleButton(
                     text = "PLAY",
-                    themeColor = Color(0xFF00E5FF),
-                    secondaryColor = Color(0xFF0D47A1),
+                    style = GlossyButtonStyle.PLAY,
                     onClick = onStartPlay,
                     pulseAlpha = buttonGlowPulse,
                     testTag = "menu_play_button"
                 )
 
-                // 2. SHOP BUTTON (Vibrant Neon Fuchsia & Ruby Magenta Jewel)
-                CrystalTitleMenuButton(
+                // 2. SHOP BUTTON (Vibrant Neon Fuchsia & Ruby Magenta Capsule from reference image)
+                GlossyArcadeCapsuleButton(
                     text = "SHOP",
-                    themeColor = Color(0xFFFF26E2),
-                    secondaryColor = Color(0xFF880E4F),
+                    style = GlossyButtonStyle.SHOP,
                     onClick = { onOpenShop("BALLS") },
                     pulseAlpha = buttonGlowPulse,
                     testTag = "menu_shop_button"
                 )
 
-                // 3. SETTINGS BUTTON (Electric Neon Violet & Cyber Deep Purple Jewel)
-                CrystalTitleMenuButton(
+                // 3. SETTINGS BUTTON (Electric Neon Violet & Cyber Purple Capsule from reference image)
+                GlossyArcadeCapsuleButton(
                     text = "SETTINGS",
-                    themeColor = Color(0xFFB388FF),
-                    secondaryColor = Color(0xFF4A148C),
+                    style = GlossyButtonStyle.SETTINGS,
                     onClick = { showSettingsDialog = true },
                     pulseAlpha = buttonGlowPulse,
                     testTag = "menu_settings_button"
                 )
 
-                // 4. SHARE BUTTON (Glowing Neon Emerald & Cosmic Teal Jewel)
-                CrystalTitleMenuButton(
+                // 4. SHARE BUTTON (Glowing Neon Emerald & Mint Capsule from reference image)
+                GlossyArcadeCapsuleButton(
                     text = "SHARE",
-                    themeColor = Color(0xFF00E676),
-                    secondaryColor = Color(0xFF004D40),
+                    style = GlossyButtonStyle.SHARE,
                     onClick = {
                         try {
                             val shareIntent = Intent(Intent.ACTION_SEND).apply {

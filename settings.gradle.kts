@@ -22,6 +22,6 @@ dependencyResolutionManagement {
   }
 }
 
-rootProject.name = "Bricks Breaker Quest"
+rootProject.name = "Bricks Quest"
 
 include(":app")

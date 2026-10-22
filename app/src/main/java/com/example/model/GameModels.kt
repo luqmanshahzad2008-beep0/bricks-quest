@@ -19,7 +19,20 @@ enum class BrickType {
     SPLITTER
 }
 
-data class BrickTones(val top: Color, val mid: Color, val bot: Color, val glow: Color)
+enum class BrickShape {
+    RECTANGLE,
+    TRIANGLE_TOP_LEFT,     // Right angle at top-left, hypotenuse from bottom-left to top-right
+    TRIANGLE_TOP_RIGHT,    // Right angle at top-right, hypotenuse from top-left to bottom-right
+    TRIANGLE_BOTTOM_LEFT,  // Right angle at bottom-left, hypotenuse from top-left to bottom-right
+    TRIANGLE_BOTTOM_RIGHT  // Right angle at bottom-right, hypotenuse from bottom-left to top-right
+}
+
+data class BrickTones(
+    val border: Color,
+    val fill: Color,
+    val glow: Color,
+    val outerAura: Color
+)
 
 data class Brick(
     val id: Long,
@@ -28,60 +41,96 @@ data class Brick(
     var currentHp: Int,
     val maxHp: Int,
     val type: BrickType,
-    var isAlive: Boolean = true
+    var isAlive: Boolean = true,
+    val shape: BrickShape = BrickShape.RECTANGLE
 ) {
     fun tones(): BrickTones {
         return when (type) {
             BrickType.ADD_BALL -> BrickTones(
-                top = Color(0xFF69F0AE),
-                mid = Color(0xFF00E676),
-                bot = Color(0xFF007E33),
-                glow = Color(0xFF00E676)
+                border = Color(0xFF00E676),
+                fill = Color(0x3500E676),
+                glow = Color(0xFF69F0AE),
+                outerAura = Color(0x5500E676)
             )
             BrickType.BOMB -> BrickTones(
-                top = Color(0xFFFFAB40),
-                mid = Color(0xFFFF6D00),
-                bot = Color(0xFFD50000),
-                glow = Color(0xFFFF6D00)
+                border = Color(0xFFFF5722),
+                fill = Color(0x40FF5722),
+                glow = Color(0xFFFF8A65),
+                outerAura = Color(0x55FF5722)
             )
             BrickType.LASER_HORIZONTAL, BrickType.LASER_VERTICAL -> BrickTones(
-                top = Color(0xFF80D8FF),
-                mid = Color(0xFF00E5FF),
-                bot = Color(0xFF006064),
-                glow = Color(0xFF00E5FF)
+                border = Color(0xFF00E5FF),
+                fill = Color(0x3500E5FF),
+                glow = Color(0xFF80D8FF),
+                outerAura = Color(0x5500E5FF)
             )
             BrickType.SPLITTER -> BrickTones(
-                top = Color(0xFFFFFF72),
-                mid = Color(0xFFFFD600),
-                bot = Color(0xFFE65100),
-                glow = Color(0xFFFFD600)
+                border = Color(0xFFFFD600),
+                fill = Color(0x35FFD600),
+                glow = Color(0xFFFFFF72),
+                outerAura = Color(0x55FFD600)
             )
             BrickType.NORMAL -> {
-                // Beautiful variety of neon pink, blue, purple, cyan, orange, yellow, and coral
+                // Vibrant neon colors matching the user's reference picture:
+                // Neon Cyan, Neon Yellow, Neon Magenta/Red, Neon Purple, Neon Lime Green, Neon Cobalt
                 val palettes = listOf(
-                    // 1. Vibrant Neon Pink / Magenta
-                    BrickTones(Color(0xFFFF4081), Color(0xFFFF007F), Color(0xFF880E4F), Color(0xFFFF007F)),
-                    // 2. Electric Cobalt / Neon Blue
-                    BrickTones(Color(0xFF40C4FF), Color(0xFF0070F3), Color(0xFF0D47A1), Color(0xFF0070F3)),
-                    // 3. Cosmic Purple / Electric Violet
-                    BrickTones(Color(0xFFE040FB), Color(0xFF9D00FF), Color(0xFF4A148C), Color(0xFF9D00FF)),
-                    // 4. Cyber Cyan / Luminous Turquoise
-                    BrickTones(Color(0xFF84FFFF), Color(0xFF00E5FF), Color(0xFF004D40), Color(0xFF00E5FF)),
-                    // 5. Fiery Neon Amber / Orange
-                    BrickTones(Color(0xFFFFAB40), Color(0xFFFF6D00), Color(0xFFBF360C), Color(0xFFFF6D00)),
-                    // 6. Neon Electric Gold
-                    BrickTones(Color(0xFFFFFF72), Color(0xFFFFD600), Color(0xFFF57F17), Color(0xFFFFD600)),
-                    // 7. Neon Coral Red
-                    BrickTones(Color(0xFFFF5252), Color(0xFFFF1744), Color(0xFFB71C1C), Color(0xFFFF1744))
+                    // 1. Neon Cyan / Aqua (Matches picture brick 32, 21, 32)
+                    BrickTones(
+                        border = Color(0xFF00E5FF),
+                        fill = Color(0x3000E5FF),
+                        glow = Color(0xFF84FFFF),
+                        outerAura = Color(0x4500E5FF)
+                    ),
+                    // 2. Neon Golden Yellow (Matches picture brick 31, 24, 31)
+                    BrickTones(
+                        border = Color(0xFFFFD600),
+                        fill = Color(0x30FFD600),
+                        glow = Color(0xFFFFFF8D),
+                        outerAura = Color(0x45FFD600)
+                    ),
+                    // 3. Neon Ruby / Magenta Red (Matches picture brick 35, 3)
+                    BrickTones(
+                        border = Color(0xFFFF1744),
+                        fill = Color(0x30FF1744),
+                        glow = Color(0xFFFF8A80),
+                        outerAura = Color(0x45FF1744)
+                    ),
+                    // 4. Neon Purple / Electric Violet (Matches picture brick 11, 20)
+                    BrickTones(
+                        border = Color(0xFFB388FF),
+                        fill = Color(0x30B388FF),
+                        glow = Color(0xFFD1C4E9),
+                        outerAura = Color(0x45B388FF)
+                    ),
+                    // 5. Neon Cyber Lime (Matches picture brick 25, 27)
+                    BrickTones(
+                        border = Color(0xFF76FF03),
+                        fill = Color(0x3076FF03),
+                        glow = Color(0xFFCCFF90),
+                        outerAura = Color(0x4576FF03)
+                    ),
+                    // 6. Neon Sky Blue (Matches picture brick 34, 33)
+                    BrickTones(
+                        border = Color(0xFF40C4FF),
+                        fill = Color(0x3040C4FF),
+                        glow = Color(0xFFB3E5FC),
+                        outerAura = Color(0x4540C4FF)
+                    ),
+                    // 7. Neon Coral Orange (Matches picture brick 29)
+                    BrickTones(
+                        border = Color(0xFFFF6D00),
+                        fill = Color(0x30FF6D00),
+                        glow = Color(0xFFFFD180),
+                        outerAura = Color(0x45FF6D00)
+                    )
                 )
-                // Deterministic distributed palette based on row, col, and maxHp
                 val seed = (row * 3 + col + (maxHp % 7)).let { if (it < 0) -it else it }
                 palettes[seed % palettes.size]
             }
         }
     }
 
-    fun color(): Color = tones().mid
+    fun color(): Color = tones().border
 }
 
 data class Ball(

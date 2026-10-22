@@ -166,9 +166,9 @@ class GameEngine(
             }
             GameMode.ENDLESS -> {
                 wave = 1
-                totalBalls = 1
-                ballsInReserve = 1
-                spawnEndlessWave(1)
+                totalBalls = 45 // Generous starting balls for endless mode
+                ballsInReserve = 45
+                spawnEndlessWave(1, baseHp = 15)
                 initialLevelHp = bricks.filter { it.type == BrickType.NORMAL }.sumOf { it.currentHp }.coerceAtLeast(1)
                 currentLevelHp = initialLevelHp
             }
@@ -187,14 +187,22 @@ class GameEngine(
         val random = Random(System.currentTimeMillis() + currentWave)
         val numBricks = random.nextInt(4, 7)
         val columns = (0 until cols).shuffled(random).take(numBricks)
+        val shapes = listOf(
+            BrickShape.RECTANGLE,
+            BrickShape.RECTANGLE,
+            BrickShape.TRIANGLE_TOP_LEFT,
+            BrickShape.TRIANGLE_TOP_RIGHT,
+            BrickShape.TRIANGLE_BOTTOM_LEFT,
+            BrickShape.TRIANGLE_BOTTOM_RIGHT
+        )
 
-        var extraBallPlaced = false
+        var extraBallCount = 0
 
         for (c in columns) {
             val roll = random.nextFloat()
             val type = when {
-                !extraBallPlaced && roll < 0.22f -> {
-                    extraBallPlaced = true
+                extraBallCount < 2 && roll < 0.28f -> {
+                    extraBallCount++
                     BrickType.ADD_BALL
                 }
                 roll < 0.08f -> BrickType.BOMB
@@ -203,13 +211,18 @@ class GameEngine(
                 roll < 0.22f -> BrickType.SPLITTER
                 else -> BrickType.NORMAL
             }
+            val shape = if (type == BrickType.NORMAL && random.nextFloat() < 0.35f) {
+                shapes.random(random)
+            } else {
+                BrickShape.RECTANGLE
+            }
             val hp = if (type == BrickType.NORMAL) {
-                (baseHp + random.nextInt(0, 4)).coerceAtLeast(1)
+                (baseHp + random.nextInt(0, 5)).coerceIn(10, 60)
             } else 1
-            bricks.add(Brick(nextBrickId++, c, 1, hp, hp, type))
+            bricks.add(Brick(nextBrickId++, c, 1, hp, hp, type, shape = shape))
         }
 
-        if (!extraBallPlaced) {
+        if (extraBallCount == 0) {
             val available = (0 until cols).filter { c -> bricks.none { it.col == c && it.row == 1 } }
             if (available.isNotEmpty()) {
                 val c = available.random(random)
@@ -221,20 +234,32 @@ class GameEngine(
     fun useLightningStrike() {
         if (lightningCharges <= 0 || isGameOver || isStageClear) return
         lightningCharges--
+        storage.lightningCharges = lightningCharges
         soundManager.playLaserSound()
         soundManager.triggerExplosionHaptic()
 
-        // Blast 2 columns with lightning safely
-        val targetCol1 = Random.nextInt(cols)
-        val targetCol2 = (targetCol1 + Random.nextInt(1, cols)) % cols
-        listOf(targetCol1, targetCol2).forEach { col ->
+        // Choose columns that actually have alive bricks
+        val aliveBricks = synchronized(bricks) { bricks.filter { it.isAlive && it.type != BrickType.ADD_BALL } }
+        val colsWithBricks = aliveBricks.map { it.col }.distinct()
+
+        val targetCols = if (colsWithBricks.isNotEmpty()) {
+            colsWithBricks.shuffled().take(2)
+        } else {
+            val c1 = Random.nextInt(cols)
+            listOf(c1, (c1 + 1) % cols)
+        }
+
+        targetCols.forEach { col ->
             val colCenterX = playLeft + col * cellWidth + cellWidth / 2f
-            if (laserEffects.size < 6) {
-                laserEffects.add(LaserEffect(isHorizontal = false, centerCoord = colCenterX, color = Color(0xFF00E5FF)))
+            synchronized(laserEffects) {
+                if (laserEffects.size < 6) {
+                    laserEffects.add(LaserEffect(isHorizontal = false, centerCoord = colCenterX, color = Color(0xFF00E5FF)))
+                }
             }
-            val colBricks = bricks.filter { it.isAlive && it.col == col }
+            val colBricks = synchronized(bricks) { bricks.filter { it.isAlive && it.col == col } }
             for (b in colBricks) {
-                b.currentHp -= 45
+                if (!b.isAlive) continue
+                b.currentHp -= 50
                 val ry = playTop + b.row * cellHeight + cellHeight / 2f
                 if (b.currentHp <= 0) {
                     destroyBrick(b, colCenterX, ry)
@@ -243,14 +268,17 @@ class GameEngine(
                 }
             }
         }
-        if (floatingTexts.size < 15) {
-            floatingTexts.add(FloatText("⚡ LIGHTNING!", screenWidth / 2f, playTop + 100f, 1f, Color(0xFF00E5FF)))
+        synchronized(floatingTexts) {
+            if (floatingTexts.size < 15) {
+                floatingTexts.add(FloatText("⚡ LIGHTNING!", screenWidth / 2f, playTop + 100f, 1f, Color(0xFF00E5FF)))
+            }
         }
     }
 
     fun useClusterBomb() {
         if (clusterCharges <= 0 || isGameOver || isStageClear) return
         clusterCharges--
+        storage.clusterCharges = clusterCharges
         soundManager.playBombSound()
         soundManager.triggerExplosionHaptic()
 
@@ -260,8 +288,14 @@ class GameEngine(
         } else {
             ballsInReserve += 30
         }
-        floatingTexts.add(FloatText("✦ +30 MEGA BALLS!", screenWidth / 2f, groundY - 80f, 1f, Color(0xFFFF007F)))
-        shockwaves.add(Shockwave(launcherX, groundY, maxRadius = 250f, color = Color(0xFFFF007F)))
+        synchronized(floatingTexts) {
+            if (floatingTexts.size < 15) {
+                floatingTexts.add(FloatText("✦ +30 MEGA BALLS!", screenWidth / 2f, groundY - 80f, 1f, Color(0xFFFF007F)))
+            }
+        }
+        synchronized(shockwaves) {
+            shockwaves.add(Shockwave(launcherX, groundY, maxRadius = 250f, color = Color(0xFFFF007F)))
+        }
     }
 
     fun startAim(touchX: Float, touchY: Float) {
@@ -643,10 +677,12 @@ class GameEngine(
                 ball.x = playLeft + ballRadius
                 ball.vx = abs(ball.vx)
                 ball.bounceCount++
+                soundManager.playBounceSound()
             } else if (ball.x >= playRight - ballRadius) {
                 ball.x = playRight - ballRadius
                 ball.vx = -abs(ball.vx)
                 ball.bounceCount++
+                soundManager.playBounceSound()
             }
 
             // Top wall
@@ -654,6 +690,7 @@ class GameEngine(
                 ball.y = playTop + ballRadius
                 ball.vy = abs(ball.vy)
                 ball.bounceCount++
+                soundManager.playBounceSound()
             }
 
             // Anti-horizontal trap: prevent near-zero vertical velocity
@@ -665,7 +702,7 @@ class GameEngine(
                 ball.vy = abs(ball.vy).coerceAtLeast(420f)
             }
 
-            // Brick collisions
+            // Brick collisions (supports both rectangular and triangular angled bricks)
             for (brick in bricks) {
                 if (!brick.isAlive) continue
 
@@ -674,30 +711,121 @@ class GameEngine(
                 val bRight = bLeft + cellWidth - 3f
                 val bBottom = bTop + cellHeight - 3f
 
-                val closestX = ball.x.coerceIn(bLeft, bRight)
-                val closestY = ball.y.coerceIn(bTop, bBottom)
+                val isTriangle = brick.shape != BrickShape.RECTANGLE
+                var collided = false
+                var hitNormalX = 0f
+                var hitNormalY = 0f
 
-                val distX = ball.x - closestX
-                val distY = ball.y - closestY
-                val distSq = distX * distX + distY * distY
+                if (!isTriangle) {
+                    val closestX = ball.x.coerceIn(bLeft, bRight)
+                    val closestY = ball.y.coerceIn(bTop, bBottom)
+                    val distX = ball.x - closestX
+                    val distY = ball.y - closestY
+                    val distSq = distX * distX + distY * distY
+                    if (distSq <= ballRadius * ballRadius) {
+                        collided = true
+                        val overlapX = ballRadius - abs(distX)
+                        val overlapY = ballRadius - abs(distY)
+                        if (overlapX < overlapY) {
+                            hitNormalX = if (distX > 0) 1f else -1f
+                            hitNormalY = 0f
+                            ball.x += if (distX > 0) overlapX else -overlapX
+                        } else {
+                            hitNormalX = 0f
+                            hitNormalY = if (distY > 0) 1f else -1f
+                            ball.y += if (distY > 0) overlapY else -overlapY
+                        }
+                    }
+                } else {
+                    // Triangle collision with 45-degree hypotenuse reflection
+                    val inAABB = ball.x + ballRadius >= bLeft && ball.x - ballRadius <= bRight &&
+                                 ball.y + ballRadius >= bTop && ball.y - ballRadius <= bBottom
+                    if (inAABB) {
+                        val relX = ball.x - bLeft
+                        val relY = ball.y - bTop
+                        val w = bRight - bLeft
 
-                if (distSq <= ballRadius * ballRadius) {
+                        when (brick.shape) {
+                            BrickShape.TRIANGLE_TOP_LEFT -> {
+                                val diagDist = (relX + relY - w) / 1.4142f
+                                if (diagDist >= -ballRadius && diagDist <= ballRadius && relX >= -ballRadius && relY >= -ballRadius) {
+                                    collided = true
+                                    hitNormalX = 0.7071f
+                                    hitNormalY = 0.7071f
+                                    ball.x += (ballRadius - diagDist) * 0.7071f
+                                    ball.y += (ballRadius - diagDist) * 0.7071f
+                                }
+                            }
+                            BrickShape.TRIANGLE_TOP_RIGHT -> {
+                                val diagDist = (relY - relX) / 1.4142f
+                                if (diagDist >= -ballRadius && diagDist <= ballRadius) {
+                                    collided = true
+                                    hitNormalX = -0.7071f
+                                    hitNormalY = 0.7071f
+                                    ball.x -= (ballRadius - diagDist) * 0.7071f
+                                    ball.y += (ballRadius - diagDist) * 0.7071f
+                                }
+                            }
+                            BrickShape.TRIANGLE_BOTTOM_LEFT -> {
+                                val diagDist = (relX - relY) / 1.4142f
+                                if (diagDist >= -ballRadius && diagDist <= ballRadius) {
+                                    collided = true
+                                    hitNormalX = 0.7071f
+                                    hitNormalY = -0.7071f
+                                    ball.x += (ballRadius - diagDist) * 0.7071f
+                                    ball.y -= (ballRadius - diagDist) * 0.7071f
+                                }
+                            }
+                            BrickShape.TRIANGLE_BOTTOM_RIGHT -> {
+                                val diagDist = (w - (relX + relY)) / 1.4142f
+                                if (diagDist >= -ballRadius && diagDist <= ballRadius) {
+                                    collided = true
+                                    hitNormalX = -0.7071f
+                                    hitNormalY = -0.7071f
+                                    ball.x -= (ballRadius - diagDist) * 0.7071f
+                                    ball.y -= (ballRadius - diagDist) * 0.7071f
+                                }
+                            }
+                            else -> {}
+                        }
+                    }
+                }
+
+                if (collided) {
                     ball.bounceCount++
+                    val dot = ball.vx * hitNormalX + ball.vy * hitNormalY
+                    if (dot < 0) {
+                        ball.vx -= 2 * dot * hitNormalX
+                        ball.vy -= 2 * dot * hitNormalY
+                    } else if (!isTriangle) {
+                        if (hitNormalX != 0f) ball.vx = -ball.vx
+                        if (hitNormalY != 0f) ball.vy = -ball.vy
+                    }
+
+                    if (abs(ball.vy) < 80f) {
+                        ball.vy = if (ball.vy >= 0) 100f else -100f
+                    }
+
+                    val hitCenterX = bLeft + (bRight - bLeft) / 2f
+                    val hitCenterY = bTop + (bBottom - bTop) / 2f
+
                     when (brick.type) {
                         BrickType.ADD_BALL -> {
                             brick.isAlive = false
                             ballsEarnedThisRound++
                             soundManager.playCollectBallSound()
                             soundManager.triggerHitHaptic()
-                            spawnCosmicDebris(closestX, closestY, BrickBallItem, 8)
-                            if (floatingTexts.size < 15) {
-                                floatingTexts.add(FloatText("+1 BALL", closestX, closestY, 1f, BrickBallItem))
+                            spawnCosmicDebris(hitCenterX, hitCenterY, Color(0xFF00E676), 8)
+                            synchronized(floatingTexts) {
+                                if (floatingTexts.size < 15) {
+                                    floatingTexts.add(FloatText("+1 BALL", hitCenterX, hitCenterY, 1f, Color(0xFF00E676)))
+                                }
                             }
                         }
                         BrickType.SPLITTER -> {
                             brick.isAlive = false
                             soundManager.playHitSound(comboCount++)
-                            spawnCosmicDebris(closestX, closestY, NeonGold, 8)
+                            spawnCosmicDebris(hitCenterX, hitCenterY, Color(0xFFFFD600), 8)
                             if (balls.size + ballsToSplit.size < 70) {
                                 val speed = sqrt(ball.vx * ball.vx + ball.vy * ball.vy)
                                 val currentAngle = atan2(ball.vy, ball.vx)
@@ -724,22 +852,7 @@ class GameEngine(
                             }
                         }
                         else -> {
-                            val overlapX = ballRadius - abs(distX)
-                            val overlapY = ballRadius - abs(distY)
-
-                            if (overlapX < overlapY) {
-                                ball.vx = if (distX > 0) abs(ball.vx) else -abs(ball.vx)
-                                ball.x += if (distX > 0) overlapX else -overlapX
-                            } else {
-                                ball.vy = if (distY > 0) abs(ball.vy) else -abs(ball.vy)
-                                ball.y += if (distY > 0) overlapY else -overlapY
-                            }
-
-                            if (abs(ball.vy) < 80f) {
-                                ball.vy = if (ball.vy >= 0) 100f else -100f
-                            }
-
-                            handleBrickHit(brick, closestX, closestY)
+                            handleBrickHit(brick, hitCenterX, hitCenterY)
                         }
                     }
                     break
@@ -847,40 +960,63 @@ class GameEngine(
         }
     }
 
-    private fun triggerHorizontalLaser(row: Int, y: Float) {
-        soundManager.playLaserSound()
-        soundManager.triggerBreakHaptic()
-        if (laserEffects.size < 6) {
-            laserEffects.add(LaserEffect(isHorizontal = true, centerCoord = y, color = BrickLaser))
-        }
-        if (floatingTexts.size < 15) {
-            floatingTexts.add(FloatText("⚡ LASER!", playRight - 100f, y, 1f, BrickLaser))
-        }
+    private val activeLaserRows = mutableSetOf<Int>()
+    private val activeLaserCols = mutableSetOf<Int>()
 
-        val rowBricks = bricks.filter { it.isAlive && it.row == row }
-        for (rowBrick in rowBricks) {
-            rowBrick.currentHp -= 50
-            if (rowBrick.currentHp <= 0) {
-                val rx = playLeft + rowBrick.col * cellWidth + cellWidth / 2f
-                destroyBrick(rowBrick, rx, y)
+    private fun triggerHorizontalLaser(row: Int, y: Float) {
+        if (!activeLaserRows.add(row)) return
+        try {
+            soundManager.playLaserSound()
+            soundManager.triggerBreakHaptic()
+            synchronized(laserEffects) {
+                if (laserEffects.size < 6) {
+                    laserEffects.add(LaserEffect(isHorizontal = true, centerCoord = y, color = Color(0xFF00E5FF)))
+                }
             }
+            synchronized(floatingTexts) {
+                if (floatingTexts.size < 15) {
+                    floatingTexts.add(FloatText("⚡ LASER!", playRight - 100f, y, 1f, Color(0xFF00E5FF)))
+                }
+            }
+
+            val rowBricks = synchronized(bricks) { bricks.filter { it.isAlive && it.row == row } }
+            for (rowBrick in rowBricks) {
+                rowBrick.currentHp -= 50
+                val rx = playLeft + rowBrick.col * cellWidth + cellWidth / 2f
+                if (rowBrick.currentHp <= 0) {
+                    destroyBrick(rowBrick, rx, y)
+                } else {
+                    spawnCosmicDebris(rx, y, rowBrick.color(), 6)
+                }
+            }
+        } finally {
+            activeLaserRows.remove(row)
         }
     }
 
     private fun triggerVerticalLaser(col: Int, x: Float) {
-        soundManager.playLaserSound()
-        soundManager.triggerBreakHaptic()
-        if (laserEffects.size < 6) {
-            laserEffects.add(LaserEffect(isHorizontal = false, centerCoord = x, color = NeonCyan))
-        }
-
-        val colBricks = bricks.filter { it.isAlive && it.col == col }
-        for (colBrick in colBricks) {
-            colBrick.currentHp -= 50
-            if (colBrick.currentHp <= 0) {
-                val ry = playTop + colBrick.row * cellHeight + cellHeight / 2f
-                destroyBrick(colBrick, x, ry)
+        if (!activeLaserCols.add(col)) return
+        try {
+            soundManager.playLaserSound()
+            soundManager.triggerBreakHaptic()
+            synchronized(laserEffects) {
+                if (laserEffects.size < 6) {
+                    laserEffects.add(LaserEffect(isHorizontal = false, centerCoord = x, color = Color(0xFF00E5FF)))
+                }
             }
+
+            val colBricks = synchronized(bricks) { bricks.filter { it.isAlive && it.col == col } }
+            for (colBrick in colBricks) {
+                colBrick.currentHp -= 50
+                val ry = playTop + colBrick.row * cellHeight + cellHeight / 2f
+                if (colBrick.currentHp <= 0) {
+                    destroyBrick(colBrick, x, ry)
+                } else {
+                    spawnCosmicDebris(x, ry, colBrick.color(), 6)
+                }
+            }
+        } finally {
+            activeLaserCols.remove(col)
         }
     }
 

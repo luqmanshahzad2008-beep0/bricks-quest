@@ -471,12 +471,12 @@ fun GameScreen(
                     drawPath(purpleShipPath, color = Color(0xFFBA68C8))
                     drawPath(purpleShipPath, color = Color(0xFFE040FB), style = Stroke(width = 1.5.dp.toPx()))
 
-                    // DRAW 8 COLUMNS OF NEON BRICKS (STYLISH, GLOSSY 3D JEWEL TILES)
+                    // DRAW 8 COLUMNS OF NEON GLOWING BRICKS (ACCURATE MATCH TO REFERENCE PICTURE)
                     val brickGap = 3.dp.toPx()
-                    val bCornerR = CornerRadius(7.dp.toPx(), 7.dp.toPx())
-                    val bCornerPx = 7.dp.toPx()
+                    val bCornerR = CornerRadius(6.dp.toPx(), 6.dp.toPx())
+                    val safeBricks = synchronized(engine.bricks) { engine.bricks.toList() }
 
-                    for (brick in engine.bricks) {
+                    for (brick in safeBricks) {
                         if (!brick.isAlive) continue
 
                         val bX = engine.playLeft + brick.col * engine.cellWidth + brickGap / 2f
@@ -484,166 +484,168 @@ fun GameScreen(
                         val bW = engine.cellWidth - brickGap
                         val bH = engine.cellHeight - brickGap
 
-                        val centerX = bX + bW / 2f
-                        val centerY = bY + bH / 2f
                         val tones = brick.tones()
-                        val bColor = tones.glow
+                        val isTriangle = brick.shape != BrickShape.RECTANGLE
 
-                        // 1. 3D Base Drop Shadow for Physical Depth
-                        drawRoundRect(
-                            color = Color.Black.copy(alpha = 0.45f),
-                            topLeft = Offset(bX, bY + 2.dp.toPx()),
-                            size = Size(bW, bH),
-                            cornerRadius = bCornerR
-                        )
+                        var textCenterX = bX + bW / 2f
+                        var textCenterY = bY + bH / 2f
 
-                        // 2. Rich Multi-Tone 3D Gradient Jewel Body
-                        drawRoundRect(
-                            brush = Brush.verticalGradient(
-                                colors = listOf(tones.top, tones.mid, tones.bot),
-                                startY = bY,
-                                endY = bY + bH
-                            ),
-                            topLeft = Offset(bX, bY),
-                            size = Size(bW, bH),
-                            cornerRadius = bCornerR
-                        )
+                        if (!isTriangle) {
+                            // 1. Soft Outer Neon Glow Aura
+                            drawRoundRect(
+                                color = tones.outerAura,
+                                topLeft = Offset(bX - 2.dp.toPx(), bY - 2.dp.toPx()),
+                                size = Size(bW + 4.dp.toPx(), bH + 4.dp.toPx()),
+                                cornerRadius = CornerRadius(8.dp.toPx(), 8.dp.toPx())
+                            )
 
-                        // 3. Delicate Top Specular Shine (Keeps tile center clear and vibrant)
-                        drawRoundRect(
-                            brush = Brush.verticalGradient(
-                                colors = listOf(
-                                    Color.White.copy(alpha = 0.32f),
-                                    Color.White.copy(alpha = 0.06f),
-                                    Color.Transparent
-                                ),
-                                startY = bY + 1.dp.toPx(),
-                                endY = bY + bH * 0.28f
-                            ),
-                            topLeft = Offset(bX + 1.5.dp.toPx(), bY + 1.5.dp.toPx()),
-                            size = Size(bW - 3.dp.toPx(), bH * 0.26f),
-                            cornerRadius = CornerRadius(5.dp.toPx(), 5.dp.toPx())
-                        )
+                            // 2. Translucent Dark Neon-Tinted Fill (Matches picture glass look)
+                            drawRoundRect(
+                                color = tones.fill,
+                                topLeft = Offset(bX, bY),
+                                size = Size(bW, bH),
+                                cornerRadius = bCornerR
+                            )
 
-                        // 4. 3D Specular Highlight Bevel (Top & Left Edges)
-                        val highlightPath = Path().apply {
-                            moveTo(bX, bY + bH - bCornerPx)
-                            lineTo(bX, bY + bCornerPx)
-                            quadraticTo(bX, bY, bX + bCornerPx, bY)
-                            lineTo(bX + bW - bCornerPx, bY)
+                            // 3. Crisp Vibrant Neon Border
+                            drawRoundRect(
+                                color = tones.border,
+                                topLeft = Offset(bX, bY),
+                                size = Size(bW, bH),
+                                cornerRadius = bCornerR,
+                                style = Stroke(width = 2.4.dp.toPx())
+                            )
+
+                            // 4. Subtle Inner Glow Rim
+                            drawRoundRect(
+                                color = tones.glow.copy(alpha = 0.35f),
+                                topLeft = Offset(bX + 1.2.dp.toPx(), bY + 1.2.dp.toPx()),
+                                size = Size(bW - 2.4.dp.toPx(), bH - 2.4.dp.toPx()),
+                                cornerRadius = CornerRadius(5.dp.toPx(), 5.dp.toPx()),
+                                style = Stroke(width = 1.dp.toPx())
+                            )
+                        } else {
+                            // TRIANGLE BRICK (Diagonal Hypotenuse Bounce)
+                            val triPath = Path()
+                            when (brick.shape) {
+                                BrickShape.TRIANGLE_TOP_LEFT -> {
+                                    triPath.moveTo(bX, bY)
+                                    triPath.lineTo(bX + bW, bY)
+                                    triPath.lineTo(bX, bY + bH)
+                                    triPath.close()
+                                    textCenterX = bX + bW * 0.34f
+                                    textCenterY = bY + bH * 0.34f
+                                }
+                                BrickShape.TRIANGLE_TOP_RIGHT -> {
+                                    triPath.moveTo(bX, bY)
+                                    triPath.lineTo(bX + bW, bY)
+                                    triPath.lineTo(bX + bW, bY + bH)
+                                    triPath.close()
+                                    textCenterX = bX + bW * 0.66f
+                                    textCenterY = bY + bH * 0.34f
+                                }
+                                BrickShape.TRIANGLE_BOTTOM_LEFT -> {
+                                    triPath.moveTo(bX, bY)
+                                    triPath.lineTo(bX, bY + bH)
+                                    triPath.lineTo(bX + bW, bY + bH)
+                                    triPath.close()
+                                    textCenterX = bX + bW * 0.34f
+                                    textCenterY = bY + bH * 0.66f
+                                }
+                                BrickShape.TRIANGLE_BOTTOM_RIGHT -> {
+                                    triPath.moveTo(bX + bW, bY)
+                                    triPath.lineTo(bX + bW, bY + bH)
+                                    triPath.lineTo(bX, bY + bH)
+                                    triPath.close()
+                                    textCenterX = bX + bW * 0.66f
+                                    textCenterY = bY + bH * 0.66f
+                                }
+                                else -> {}
+                            }
+
+                            // 1. Soft Outer Neon Aura
+                            drawPath(triPath, color = tones.outerAura, style = Stroke(width = 5.dp.toPx()))
+
+                            // 2. Translucent Tinted Dark Fill
+                            drawPath(triPath, color = tones.fill)
+
+                            // 3. Crisp Neon Outer Border
+                            drawPath(triPath, color = tones.border, style = Stroke(width = 2.4.dp.toPx()))
+
+                            // 4. Subtle Inner Accent
+                            drawPath(triPath, color = tones.glow.copy(alpha = 0.35f), style = Stroke(width = 1.dp.toPx()))
                         }
-                        drawPath(
-                            path = highlightPath,
-                            color = Color.White.copy(alpha = 0.50f),
-                            style = Stroke(width = 1.4.dp.toPx())
-                        )
 
-                        // 3D Shadow Bevel (Bottom & Right Edges)
-                        val shadowPath = Path().apply {
-                            moveTo(bX + bW, bY + bCornerPx)
-                            lineTo(bX + bW, bY + bH - bCornerPx)
-                            quadraticTo(bX + bW, bY + bH, bX + bW - bCornerPx, bY + bH)
-                            lineTo(bX + bCornerPx, bY + bH)
-                        }
-                        drawPath(
-                            path = shadowPath,
-                            color = Color.Black.copy(alpha = 0.38f),
-                            style = Stroke(width = 1.4.dp.toPx())
-                        )
-
-                        // 5. Crisp Outer Jewel Border
-                        drawRoundRect(
-                            color = bColor.copy(alpha = 0.75f),
-                            topLeft = Offset(bX, bY),
-                            size = Size(bW, bH),
-                            cornerRadius = bCornerR,
-                            style = Stroke(width = 1.3.dp.toPx())
-                        )
-
-                        // 6. Render Brick Icon / Number (Ultra-crisp, beautiful, modern typography)
+                        // RENDER NUMBER OR SPECIAL ICON
                         when (brick.type) {
                             BrickType.ADD_BALL -> {
-                                val circleR = (bH * 0.28f).coerceAtMost(bW * 0.28f)
+                                val targetR = (bH * 0.28f).coerceAtMost(bW * 0.28f)
+                                // Concentric glowing rings matching reference image
+                                drawCircle(
+                                    color = Color(0xFF00E676).copy(alpha = 0.35f),
+                                    radius = targetR * 1.35f,
+                                    center = Offset(textCenterX, textCenterY),
+                                    style = Stroke(width = 1.8.dp.toPx())
+                                )
                                 drawCircle(
                                     color = Color(0xFF00E676),
-                                    radius = circleR,
-                                    center = Offset(centerX, centerY),
-                                    style = Stroke(width = 2.dp.toPx())
+                                    radius = targetR,
+                                    center = Offset(textCenterX, textCenterY),
+                                    style = Stroke(width = 2.2.dp.toPx())
                                 )
                                 drawCircle(
-                                    color = Color(0xFF00E676).copy(alpha = 0.30f),
-                                    radius = circleR,
-                                    center = Offset(centerX, centerY)
+                                    color = Color.White,
+                                    radius = targetR * 0.42f,
+                                    center = Offset(textCenterX, textCenterY)
                                 )
-                                val plusSize = (bH * 0.44f).coerceAtMost(bW * 0.44f)
-                                numberOutlinePaint.textSize = plusSize
-                                numberPaint.textSize = plusSize
-                                val textY = centerY - ((numberPaint.descent() + numberPaint.ascent()) / 2f)
-                                nativeCanvas.drawText("+", centerX, textY, numberOutlinePaint)
-                                nativeCanvas.drawText("+", centerX, textY, numberPaint)
                             }
                             BrickType.BOMB -> {
                                 val bombR = (bH * 0.26f).coerceAtMost(bW * 0.26f)
-                                val bombCenter = Offset(centerX, centerY + 2.dp.toPx())
                                 drawCircle(
-                                    brush = Brush.radialGradient(
-                                        colors = listOf(Color(0xFF546E7A), Color(0xFF263238), Color(0xFF10171A)),
-                                        center = Offset(bombCenter.x - bombR * 0.35f, bombCenter.y - bombR * 0.35f),
-                                        radius = bombR * 1.2f
-                                    ),
+                                    color = Color(0xFFFF5722).copy(alpha = 0.4f),
+                                    radius = bombR * 1.3f,
+                                    center = Offset(textCenterX, textCenterY)
+                                )
+                                drawCircle(
+                                    color = Color(0xFFFF5722),
                                     radius = bombR,
-                                    center = bombCenter
+                                    center = Offset(textCenterX, textCenterY),
+                                    style = Stroke(width = 2.dp.toPx())
                                 )
                                 drawCircle(
-                                    color = Color.White.copy(alpha = 0.85f),
-                                    radius = bombR * 0.22f,
-                                    center = Offset(bombCenter.x - bombR * 0.32f, bombCenter.y - bombR * 0.32f)
-                                )
-                                drawRect(
-                                    color = Color(0xFF37474F),
-                                    topLeft = Offset(centerX - 2.5.dp.toPx(), bombCenter.y - bombR - 2.5.dp.toPx()),
-                                    size = Size(5.dp.toPx(), 3.5.dp.toPx())
-                                )
-                                drawCircle(
-                                    color = Color(0xFFFFD600),
-                                    radius = 2.5.dp.toPx(),
-                                    center = Offset(centerX + 3.dp.toPx(), bombCenter.y - bombR - 5.dp.toPx())
-                                )
-                                drawCircle(
-                                    color = Color(0xFFFF3D00).copy(alpha = 0.6f),
-                                    radius = 5.dp.toPx(),
-                                    center = Offset(centerX + 3.dp.toPx(), bombCenter.y - bombR - 5.dp.toPx())
+                                    color = Color.White,
+                                    radius = bombR * 0.35f,
+                                    center = Offset(textCenterX, textCenterY)
                                 )
                             }
                             BrickType.LASER_HORIZONTAL -> {
                                 val symSize = (bH * 0.36f).coerceAtMost(bW * 0.36f)
                                 numberOutlinePaint.textSize = symSize
                                 numberPaint.textSize = symSize
-                                val textY = centerY - ((numberPaint.descent() + numberPaint.ascent()) / 2f)
-                                nativeCanvas.drawText("◀▶", centerX, textY, numberOutlinePaint)
-                                nativeCanvas.drawText("◀▶", centerX, textY, numberPaint)
+                                val textY = textCenterY - ((numberPaint.descent() + numberPaint.ascent()) / 2f)
+                                nativeCanvas.drawText("◀▶", textCenterX, textY, numberOutlinePaint)
+                                nativeCanvas.drawText("◀▶", textCenterX, textY, numberPaint)
                             }
                             BrickType.LASER_VERTICAL -> {
                                 val symSize = (bH * 0.36f).coerceAtMost(bW * 0.36f)
                                 numberOutlinePaint.textSize = symSize
                                 numberPaint.textSize = symSize
-                                val textY = centerY - ((numberPaint.descent() + numberPaint.ascent()) / 2f)
-                                nativeCanvas.drawText("▲▼", centerX, textY, numberOutlinePaint)
-                                nativeCanvas.drawText("▲▼", centerX, textY, numberPaint)
+                                val textY = textCenterY - ((numberPaint.descent() + numberPaint.ascent()) / 2f)
+                                nativeCanvas.drawText("▲▼", textCenterX, textY, numberOutlinePaint)
+                                nativeCanvas.drawText("▲▼", textCenterX, textY, numberPaint)
                             }
                             BrickType.SPLITTER -> {
                                 val symSize = (bH * 0.38f).coerceAtMost(bW * 0.38f)
                                 numberOutlinePaint.textSize = symSize
                                 numberPaint.textSize = symSize
-                                val textY = centerY - ((numberPaint.descent() + numberPaint.ascent()) / 2f)
-                                nativeCanvas.drawText("✕2", centerX, textY, numberOutlinePaint)
-                                nativeCanvas.drawText("✕2", centerX, textY, numberPaint)
+                                val textY = textCenterY - ((numberPaint.descent() + numberPaint.ascent()) / 2f)
+                                nativeCanvas.drawText("✕2", textCenterX, textY, numberOutlinePaint)
+                                nativeCanvas.drawText("✕2", textCenterX, textY, numberPaint)
                             }
                             BrickType.NORMAL -> {
                                 val numStr = "${brick.currentHp}"
-                                // Beautiful, clear geometric typography with comfortable padding
-                                val maxAllowedWidth = bW * 0.65f
-                                var targetTextSize = bH * 0.44f
+                                val maxAllowedWidth = if (isTriangle) bW * 0.50f else bW * 0.65f
+                                var targetTextSize = if (isTriangle) bH * 0.38f else bH * 0.44f
                                 numberPaint.textSize = targetTextSize
                                 val measuredW = numberPaint.measureText(numStr)
                                 if (measuredW > maxAllowedWidth) {
@@ -651,19 +653,20 @@ fun GameScreen(
                                     numberPaint.textSize = targetTextSize
                                 }
                                 numberOutlinePaint.textSize = targetTextSize
-                                val textY = centerY - ((numberPaint.descent() + numberPaint.ascent()) / 2f)
+                                val textY = textCenterY - ((numberPaint.descent() + numberPaint.ascent()) / 2f)
 
-                                // 1. Sharp dark contour/beveled outline for razor-sharp separation on any color
-                                nativeCanvas.drawText(numStr, centerX, textY, numberOutlinePaint)
+                                // 1. Crisp dark contour outline
+                                nativeCanvas.drawText(numStr, textCenterX, textY, numberOutlinePaint)
 
-                                // 2. Brilliant pure white number fill
-                                nativeCanvas.drawText(numStr, centerX, textY, numberPaint)
+                                // 2. Solid pure white number fill (as in reference screenshot)
+                                nativeCanvas.drawText(numStr, textCenterX, textY, numberPaint)
                             }
                         }
                     }
 
-                    // DRAW LASER BEAMS & LIGHTNING
-                    for (laser in engine.laserEffects) {
+                    // DRAW LASER BEAMS & LIGHTNING (SAFE SNAPSHOT)
+                    val safeLasers = synchronized(engine.laserEffects) { engine.laserEffects.toList() }
+                    for (laser in safeLasers) {
                         val alpha = (laser.timer / 0.25f).coerceIn(0f, 1f)
                         if (laser.isHorizontal) {
                             drawRect(
@@ -691,8 +694,9 @@ fun GameScreen(
                         }
                     }
 
-                    // DRAW SHOCKWAVES
-                    for (sw in engine.shockwaves) {
+                    // DRAW SHOCKWAVES (SAFE SNAPSHOT)
+                    val safeShockwaves = synchronized(engine.shockwaves) { engine.shockwaves.toList() }
+                    for (sw in safeShockwaves) {
                         drawCircle(
                             color = sw.color.copy(alpha = sw.alpha),
                             radius = sw.currentRadius,
@@ -701,8 +705,9 @@ fun GameScreen(
                         )
                     }
 
-                    // DRAW PARTICLES & SQUARE COSMIC DEBRIS (Matching the reference shatter FX)
-                    for (p in engine.particles) {
+                    // DRAW PARTICLES & SQUARE COSMIC DEBRIS (SAFE SNAPSHOT)
+                    val safeParticles = synchronized(engine.particles) { engine.particles.toList() }
+                    for (p in safeParticles) {
                         val alpha = (p.life / p.maxLife).coerceIn(0f, 1f)
                         if (p.isSquare) {
                             // Glowing square fragment
@@ -729,9 +734,10 @@ fun GameScreen(
                         }
                     }
 
-                    // DRAW FLOATING TEXTS
+                    // DRAW FLOATING TEXTS (SAFE SNAPSHOT)
                     ftPaint.textSize = 17.sp.toPx()
-                    for (ft in engine.floatingTexts) {
+                    val safeTexts = synchronized(engine.floatingTexts) { engine.floatingTexts.toList() }
+                    for (ft in safeTexts) {
                         ftPaint.color = ft.color.copy(alpha = ft.alpha.coerceIn(0f, 1f)).toArgb()
                         nativeCanvas.drawText(ft.text, ft.x, ft.y, ftPaint)
                     }
@@ -790,11 +796,13 @@ fun GameScreen(
                         }
                     }
 
-                    // DRAW ACTIVE BALLS & MOTION TRAILS (INCLUDING RETURNED BALLS SLIDING TO BASE)
-                    for (ball in engine.balls) {
+                    // DRAW ACTIVE BALLS & MOTION TRAILS (SAFE SNAPSHOT)
+                    val safeBalls = synchronized(engine.balls) { engine.balls.toList() }
+                    for (ball in safeBalls) {
                         if (ball.isActive) {
-                            for ((tIdx, trailPoint) in ball.trail.withIndex()) {
-                                val trailAlpha = (tIdx.toFloat() / ball.trail.size) * 0.45f
+                            val safeTrail = synchronized(ball.trail) { ball.trail.toList() }
+                            for ((tIdx, trailPoint) in safeTrail.withIndex()) {
+                                val trailAlpha = (tIdx.toFloat() / (safeTrail.size.coerceAtLeast(1))) * 0.45f
                                 drawCircle(
                                     color = activeSkin.glowColor.copy(alpha = trailAlpha),
                                     radius = engine.ballRadius * (0.6f + 0.4f * trailAlpha),
@@ -1022,25 +1030,43 @@ fun GameScreen(
                         )
                     }
 
-                    // Recall button (appears during shooting)
+                    // Recall button (appears during shooting, styled like reference picture)
                     AnimatedVisibility(
                         visible = engine.isShooting,
                         enter = fadeIn() + scaleIn(),
                         exit = fadeOut()
                     ) {
-                        Button(
-                            onClick = { engine.recallBalls() },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFFFF007F),
-                                contentColor = Color.White
-                            ),
-                            shape = CutCornerShape(6.dp),
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-                            modifier = Modifier.testTag("recall_button")
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier
+                                .shadow(8.dp, RoundedCornerShape(10.dp), ambientColor = Color(0xFFFF1744), spotColor = Color(0xFFFF1744))
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(Color(0xFF260511))
+                                .border(2.dp, Color(0xFFFF1744), RoundedCornerShape(10.dp))
+                                .clickable { engine.recallBalls() }
+                                .padding(horizontal = 14.dp, vertical = 6.dp)
+                                .testTag("recall_button")
                         ) {
-                            Icon(Icons.Default.KeyboardDoubleArrowDown, contentDescription = "Recall", modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(2.dp))
-                            Text("RECALL", fontSize = 11.sp, fontWeight = FontWeight.Black)
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                // White ball icon
+                                Box(
+                                    modifier = Modifier
+                                        .size(10.dp)
+                                        .clip(CircleShape)
+                                        .background(Color.White)
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                // Down arrow ↓
+                                Icon(
+                                    imageVector = Icons.Default.ArrowDownward,
+                                    contentDescription = "Recall",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
                         }
                     }
                 }
@@ -1643,27 +1669,16 @@ fun GameScreen(
 
                             Spacer(modifier = Modifier.height(18.dp))
 
-                            // 1. NEXT LEVEL
-                            Button(
+                            // 1. NEXT LEVEL (Glossy 3D Capsule GO button)
+                            GlossyArcadeCapsuleButton(
+                                text = "NEXT LEVEL",
+                                style = GlossyButtonStyle.GO,
                                 onClick = { engine.nextStage() },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(52.dp)
-                                    .testTag("next_stage_button"),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFF00E5FF),
-                                    contentColor = Color(0xFF030712)
-                                ),
-                                shape = RoundedCornerShape(14.dp)
-                            ) {
-                                Icon(Icons.Filled.PlayArrow, contentDescription = null, tint = Color(0xFF030712))
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = "NEXT LEVEL (LEVEL ${engine.stageNumber + 1})",
-                                    fontWeight = FontWeight.Black,
-                                    fontSize = 15.sp
-                                )
-                            }
+                                height = 56.dp,
+                                fontSize = 20.sp,
+                                testTag = "next_stage_button",
+                                modifier = Modifier.fillMaxWidth()
+                            )
 
                             Spacer(modifier = Modifier.height(12.dp))
 
