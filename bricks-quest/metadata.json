@@ -1,0 +1,6 @@
+{
+  "name": "Bricks Quest",
+  "description": "An arcade neon brick breaker quest game with fluid physics, multiple powerups, stages, and endless challenge modes.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
