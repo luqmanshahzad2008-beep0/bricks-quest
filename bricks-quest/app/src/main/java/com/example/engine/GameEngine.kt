@@ -138,7 +138,7 @@ class GameEngine(
 
         playLeft = 16f
         playRight = width - 16f
-        playTop = 8f // Starts right below Top HUD row with zero gap!
+        playTop = 44f // Adds clean spacing between Top HUD and gameplay arena
         groundY = height * 0.88f
         playBottom = groundY
 
@@ -1119,29 +1119,28 @@ class GameEngine(
             }
         }
 
-        if (mode != GameMode.QUEST) {
-            bricks.forEach { brick ->
-                if (brick.isAlive) {
-                    brick.row++
-                }
+        // Move all live bricks down by exactly one row after every round
+        bricks.forEach { brick ->
+            if (brick.isAlive) {
+                brick.row++
             }
+        }
 
-            // Game over ONLY triggers when a live brick reaches the full bottom line (groundY) or maxRow
-            val reachedBottom = bricks.any { 
-                it.isAlive && it.type != BrickType.ADD_BALL && 
-                (it.row >= maxRow || (playTop + (it.row + 1) * cellHeight) >= groundY)
+        // Game over ONLY triggers when a live brick reaches the full bottom line (groundY) or maxRow
+        val reachedBottom = bricks.any { 
+            it.isAlive && it.type != BrickType.ADD_BALL && 
+            (it.row >= maxRow || (playTop + (it.row + 1) * cellHeight) >= groundY)
+        }
+        if (reachedBottom) {
+            isGameOver = true
+            soundManager.playBombSound()
+            soundManager.triggerExplosionHaptic()
+            if (mode == GameMode.ENDLESS) {
+                storage.endlessHighScore = score
+            } else if (mode == GameMode.RUSH_100) {
+                storage.rushHighScore = score
             }
-            if (reachedBottom) {
-                isGameOver = true
-                soundManager.playBombSound()
-                soundManager.triggerExplosionHaptic()
-                if (mode == GameMode.ENDLESS) {
-                    storage.endlessHighScore = score
-                } else if (mode == GameMode.RUSH_100) {
-                    storage.rushHighScore = score
-                }
-                return
-            }
+            return
         }
 
         bricks.removeAll { !it.isAlive }

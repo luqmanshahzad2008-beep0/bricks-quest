@@ -1,5 +1,7 @@
 package com.example.ui
 
+import android.net.Uri
+import android.widget.VideoView
 import android.graphics.Paint
 import android.graphics.Typeface
 import androidx.activity.compose.BackHandler
@@ -46,6 +48,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.res.ResourcesCompat
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
@@ -217,21 +220,45 @@ fun GameScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF070010))
+            .background(Color.Transparent)
     ) {
         // Continuous 3D Circular Rotating Majestic Mountains & Purple Cosmic Atmosphere
         Purple3DMountainBackground(modifier = Modifier.fillMaxSize())
 
-        // Subtle dark vignette to ensure the bricks & balls have maximum contrast
+        // Seamlessly looping 4s animated background video covering the entire screen (including top HUD and gameplay)
+        val context = LocalContext.current
+        AndroidView(
+            factory = { ctx ->
+                VideoView(ctx).apply {
+                    setVideoURI(Uri.parse("android.resource://" + ctx.packageName + "/" + R.raw.mountain_bg))
+                    setOnPreparedListener { mediaPlayer ->
+                        mediaPlayer.isLooping = true
+                        mediaPlayer.setVolume(0f, 0f)
+                        start()
+                    }
+                    setOnCompletionListener {
+                        start()
+                    }
+                }
+            },
+            update = { videoView ->
+                if (!videoView.isPlaying) {
+                    videoView.start()
+                }
+            },
+            modifier = Modifier.fillMaxSize()
+        )
+
+        // Extremely light vignette to ensure video visibility across the whole screen
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0x55070010),
+                            Color(0x15070010),
                             Color.Transparent,
-                            Color(0x65070010)
+                            Color(0x15070010)
                         )
                     )
                 )
@@ -287,7 +314,9 @@ fun GameScreen(
                 }
             }
 
-            // 3. MAIN GAMEPLAY CANVAS WITH CYBERNETIC SCI-FI FRAME
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // 3. MAIN GAMEPLAY CANVAS WITH CYBERNETIC SCI-FI FRAME & ANIMATED VIDEO BACKGROUND
             Box(
                 modifier = Modifier
                     .weight(1f)
